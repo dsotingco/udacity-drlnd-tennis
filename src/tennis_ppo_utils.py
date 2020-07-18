@@ -46,7 +46,7 @@ def collect_trajectories(env, policy):
         assert(probs.shape == torch.Size([2,2]))
         assert(states.shape == (2,24))
         assert(actions.shape == torch.Size([2,2]))
-        assert(rewards.shape == (2,24))
+        assert(rewards.shape == (2,))
         
         # Append results to output lists.
         prob_list.append(probs)
@@ -66,7 +66,7 @@ def collect_trajectories(env, policy):
 
     assert(scores.shape == (2,))
     max_agent_score = np.max(scores)
-    print('Max agent score this episode: {}'.format(max_agent_score))
+    # print('Max agent score this episode: {}'.format(max_agent_score))
 
     return prob_list, state_list, action_list, reward_list, max_agent_score
 
@@ -129,48 +129,19 @@ def calculate_entropy(old_prob_batch, new_prob_batch):
     assert(torch.isnan(entropy).any() == False)
     return entropy
 
-def run_training_epoch(policy, optimizer, old_prob_list, state_list, action_list, reward_list,
+def run_training_epoch(policy, optimizer, replayBuffer,
                        discount=0.995,
                        epsilon=0.1,
                        beta=0.01,
                        batch_size=64):
-    """ Run 1 training epoch.  Takes in the output lists from 1 run of collect_trajectories()
-    for a single episode.  Breaks up the lists into batches and then runs the batches through 
-    training. """
-    num_samples = len(state_list)
+    """ Run 1 training epoch.  Runs batches through training. """
+    num_samples = len(replayBuffer.state_memory)
     num_batches = int(np.ceil(num_samples/batch_size))
-    sample_indices = np.arange(num_samples)
-    np.random.shuffle(sample_indices)
-
-    old_prob_tensor = torch.stack(old_prob_list).detach()                           # T x 2 x  2 (T x num_agents x action_size)
-    old_prob_tensor_summed = torch.sum(old_prob_tensor, axis=2)                     # T x 2      (T x num_agents)
-    state_tensor = torch.tensor(state_list, dtype=torch.float).detach()             # T x 2 x 24 (T x num_agents x state_size)
-    action_tensor = torch.stack(action_list).detach()                               # T x 2 x  2 (T x num_agents x action_size)
-    reward_tensor = torch.tensor(process_rewards(reward_list), dtype=torch.float)   # T x 2      (T x num_agents)
-
-    # TODO: see if T is constant per episode for this environment
-    # assert(old_prob_tensor.shape == torch.Size([1001,20,4]))
-    # assert(old_prob_tensor_summed.shape == torch.Size([1001,20]))
-    # assert(state_tensor.shape == torch.Size([1001,20,33]))
-    # assert(action_tensor.shape == torch.Size([1001,20,4]))
-    # assert(reward_tensor.shape == torch.Size([1001,20]))
-    # assert(torch.isnan(old_prob_tensor).any() == False)
-    # assert(torch.isnan(old_prob_tensor_summed).any() == False)
-    # assert(torch.isnan(state_tensor).any() == False)
-    # assert(torch.isnan(action_tensor).any() == False)
-    # assert(torch.isnan(reward_tensor).any() == False)
 
     for batch_index in range(num_batches):
-        sample_start_index = batch_index * batch_size
-        sample_end_index = sample_start_index + batch_size
-        batch_sample_indices = sample_indices[sample_start_index : sample_end_index]
-
-        old_prob_batch = old_prob_tensor_summed[batch_sample_indices]
-        state_batch = state_tensor[batch_sample_indices]
-        action_batch = action_tensor[batch_sample_indices]
-        reward_batch = reward_tensor[batch_sample_indices]
+        (old_prob_batch, state_batch, action_batch, reward_batch) = replayBuffer.sample()
         new_prob_batch_raw = calculate_new_log_probs(policy, state_batch, action_batch)
-        new_prob_batch_shape = new_prob_batch_raw.shape    # should be B x 20 x 4
+        new_prob_batch_shape = new_prob_batch_raw.shape    # should be B x 2 x 2
         assert(new_prob_batch_shape[1] == 2)
         assert(new_prob_batch_shape[2] == 2)
         new_prob_batch = torch.sum(new_prob_batch_raw, axis=2)
