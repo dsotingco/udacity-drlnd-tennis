@@ -23,6 +23,7 @@ states = env_info.vector_observations
 state_size = states.shape[1]
 print('There are {} agents. Each observes a state with length: {}'.format(states.shape[0], state_size))
 print('The state for the first agent looks like:', states[0])
+print('states.shape: ', states.shape)
 
 for i in range(5):                                         # play game for 5 episodes
     env_info = env.reset(train_mode=False)[brain_name]     # reset the environment    
