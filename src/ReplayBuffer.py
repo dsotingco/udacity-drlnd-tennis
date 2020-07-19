@@ -6,15 +6,22 @@ from collections import deque
 
 class ReplayBuffer:
 
-    def __init__(self, buffer_size=8096, batch_size=128):
+    def __init__(self, buffer_size=1024, batch_size=128):
         self.prob_memory = deque(maxlen=buffer_size)
         self.state_memory = deque(maxlen=buffer_size)
         self.action_memory = deque(maxlen=buffer_size)
         self.reward_memory = deque(maxlen=buffer_size)
         self.batch_size = batch_size
+        self.sampled_count = 0
 
     def has_enough_samples(self):
         return ( len(self.state_memory) >= self.batch_size )
+
+    def clear(self):
+        self.prob_memory.clear()
+        self.state_memory.clear()
+        self.action_memory.clear()
+        self.reward_memory.clear()
 
     def add_episode(self, prob_list, state_list, action_list, processed_reward_list):
         self.prob_memory.extend(prob_list)
@@ -24,6 +31,7 @@ class ReplayBuffer:
 
     def sample(self):
         assert self.has_enough_samples()
+        self.sampled_count += 1
         num_samples = len(self.state_memory)
         sample_indices = np.arange(num_samples)
         np.random.shuffle(sample_indices)
