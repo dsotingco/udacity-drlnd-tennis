@@ -13,9 +13,9 @@ import matplotlib.pyplot as plt
 from collections import deque
 
 # Hyperparameters
-learning_rate = 2e-4
-num_episodes = 10
-discount = 0.999
+learning_rate = 1e-4
+num_episodes = 1000
+discount = 0.995
 epsilon = 0.15
 beta = 0.02
 batch_size = 128

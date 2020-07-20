@@ -133,9 +133,21 @@ def clipped_surrogate(old_prob_batch, new_prob_batch, reward_batch,
     assert(torch.isnan(ppo_loss).any() == False)
     return ppo_loss
 
-def calculate_critic_loss(advantage_batch):
+def calculate_critic_loss(reward_list, state_value_list):
     """ Calculate the loss function for the Critic. """
-    critic_loss = 0.5 * advantage_batch.pow(2)
+    assert( len(reward_list) == len(state_value_list) )
+    # calculate discounted rewards
+    discount_array = discount ** np.arange(len(reward_list))
+    discounted_rewards = np.asarray(reward_list) * discount_array[:,np.newaxis]
+
+    # calculate future discounted rewards
+    future_rewards = discounted_rewards[::-1].cumsum(axis=0)[::-1]
+    state_value_array = torch.transpose(torch.cat(state_value_list, axis=1), 0, 1).detach().numpy()
+    assert(future_rewards.shape == state_value_array.shape)
+    critic_error = future_rewards - state_value_array
+
+    # calculate half-squared-error
+    critic_loss = 0.5 * critic_error.pow(2)
     return critic_loss
 
 def calculate_entropy(old_prob_batch, new_prob_batch):
