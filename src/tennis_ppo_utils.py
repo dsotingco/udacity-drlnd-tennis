@@ -27,7 +27,7 @@ def collect_trajectories(env, policy):
 
     # run the agents in the environment
     while True:
-        (actions, probs) = policy(torch.tensor(states, dtype=torch.float))
+        (actions, probs, state_value) = policy(torch.tensor(states, dtype=torch.float))
         assert(torch.isnan(actions).any() == False)
         assert(torch.isnan(probs).any() == False)
         env_info = env.step(actions.detach().numpy())[brain_name]
@@ -93,7 +93,7 @@ def calculate_new_log_probs(policy, state_batch, action_batch):
         given the states.  To be used during training as the
         policy is changed by the optimizer. 
         Inputs are state and action batches as PyTorch tensors."""
-    (_actions, new_prob_batch) = policy(state_batch, actions=action_batch)
+    (_actions, new_prob_batch, _state_value) = policy(state_batch, actions=action_batch)
     return new_prob_batch
 
 def calculate_probability_ratio(old_prob_batch, new_prob_batch):
