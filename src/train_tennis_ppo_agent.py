@@ -45,13 +45,13 @@ scores_window = deque(maxlen=100)
 for episode in range(num_episodes):
     # Collect trajectories
     (prob_list, state_list, action_list, reward_list, state_value_list, episode_score) = tennis_ppo_utils.collect_trajectories(env, agent)
-    processed_rewards = tennis_ppo_utils.process_rewards(reward_list)
+    actor_critic_advantage = tennis_ppo_utils.calculate_advantage(reward_list, state_value_list)
     if(episode_score > replay_buffer_store_threshold):
-        replay_buffer.add_episode(prob_list, state_list, action_list, processed_rewards.tolist())
+        replay_buffer.add_episode(prob_list, state_list, action_list, actor_critic_advantage.tolist())
     if(episode_score >= high_score):
         high_score = episode_score
         print("high score:", high_score)
-        high_score_replay_buffer.add_episode(prob_list, state_list, action_list, processed_rewards.tolist())
+        high_score_replay_buffer.add_episode(prob_list, state_list, action_list, actor_critic_advantage.tolist())
 
     # Process scores
     episode_scores.append(episode_score)
@@ -61,7 +61,7 @@ for episode in range(num_episodes):
             moving_average_x.append(episode)
             moving_average_y.append(np.mean(scores_window))
             if np.mean(scores_window) >= score_save_threshold:
-                torch.save(policy.state_dict(), 'tennis_ppo_weights.pth')
+                torch.save(agent.state_dict(), 'tennis_ppo_weights.pth')
     if np.mean(scores_window) >= score_solved_threshold:
         print('\nEnvironment solved in {:d} episodes!\tAverage Score: {:.2f}'.format(episode-100, np.mean(scores_window)))
         break

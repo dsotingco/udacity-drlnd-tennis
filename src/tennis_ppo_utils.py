@@ -75,23 +75,28 @@ def collect_trajectories(env, policy):
 
     return prob_list, state_list, action_list, reward_list, state_value_list, max_agent_score
 
-def process_rewards(reward_list, discount=0.995):
-    """ Process the rewards for one run of collect_trajectories().  
+def calculate_advantage(reward_list, state_value_list, discount=0.995):
+    """ Calculate advantage for one run of collect_trajectories().  
     Outputs normalized, discounted, future rewards as a matrix of 
     num_timesteps rows, and num_agents columns."""
+    assert( len(reward_list) == len(state_value_list) )
     # calculate discounted rewards
     discount_array = discount ** np.arange(len(reward_list))
     discounted_rewards = np.asarray(reward_list) * discount_array[:,np.newaxis]
 
     # calculate future discounted rewards
     future_rewards = discounted_rewards[::-1].cumsum(axis=0)[::-1]
+    state_value_array = torch.transpose(torch.cat(state_value_list, axis=1), 0, 1).detach().numpy()
+    assert(future_rewards.shape == state_value_array.shape)
 
-    # normalize the future discounted rewards
-    mean = np.mean(future_rewards, axis=1)
-    std = np.std(future_rewards, axis=1) + 1.0e-10
-    normalized_rewards = (future_rewards - mean[:,np.newaxis]) / std[:,np.newaxis]
-    assert(np.isnan(normalized_rewards).any() == False)
-    return normalized_rewards
+    raw_advantage = future_rewards - state_value_array
+
+    # normalize the advantage
+    mean = np.mean(raw_advantage, axis=1)
+    std = np.std(raw_advantage, axis=1) + 1.0e-10
+    normalized_advantage = (raw_advantage - mean[:,np.newaxis]) / std[:,np.newaxis]
+    assert(np.isnan(normalized_advantage).any() == False)
+    return normalized_advantage
 
 def calculate_new_log_probs(policy, state_batch, action_batch):
     """ Calculate new log probabilities of the actions, 
