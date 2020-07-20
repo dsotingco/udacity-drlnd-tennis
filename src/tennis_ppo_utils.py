@@ -11,6 +11,7 @@ def collect_trajectories(env, policy):
     state_list = []
     action_list = []
     reward_list = []
+    state_value_list = []
 
     # get the default brain
     brain_name = env.brain_names[0]
@@ -41,23 +42,27 @@ def collect_trajectories(env, policy):
         assert isinstance(states, np.ndarray)
         assert isinstance(actions, torch.Tensor)
         assert isinstance(rewards, np.ndarray)
+        assert isinstance(state_value, torch.Tensor)
 
         # Dimension checks
         assert(probs.shape == torch.Size([2,2]))
         assert(states.shape == (2,24))
         assert(actions.shape == torch.Size([2,2]))
         assert(rewards.shape == (2,))
+        assert(state_value.shape == torch.Size([2,1]))
         
         # Append results to output lists.
         prob_list.append(probs)
         state_list.append(states)
         action_list.append(actions)
         reward_list.append(rewards)
+        state_value_list.append(state_value)
 
         # Dimension checks
         assert(len(prob_list) == len(state_list))
         assert(len(prob_list) == len(action_list))
         assert(len(prob_list) == len(reward_list))
+        assert(len(prob_list) == len(state_value_list))
 
         # Set up for next step
         states = next_states
@@ -68,7 +73,7 @@ def collect_trajectories(env, policy):
     max_agent_score = np.max(scores)
     # print('Max agent score this episode: {}'.format(max_agent_score))
 
-    return prob_list, state_list, action_list, reward_list, max_agent_score
+    return prob_list, state_list, action_list, reward_list, state_value_list, max_agent_score
 
 def process_rewards(reward_list, discount=0.995):
     """ Process the rewards for one run of collect_trajectories().  

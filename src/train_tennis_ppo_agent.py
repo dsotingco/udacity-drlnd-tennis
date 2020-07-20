@@ -44,7 +44,7 @@ scores_window = deque(maxlen=100)
 # Run episodes and train agent.
 for episode in range(num_episodes):
     # Collect trajectories
-    (prob_list, state_list, action_list, reward_list, episode_score) = tennis_ppo_utils.collect_trajectories(env, agent)
+    (prob_list, state_list, action_list, reward_list, state_value_list, episode_score) = tennis_ppo_utils.collect_trajectories(env, agent)
     processed_rewards = tennis_ppo_utils.process_rewards(reward_list)
     if(episode_score > replay_buffer_store_threshold):
         replay_buffer.add_episode(prob_list, state_list, action_list, processed_rewards.tolist())
