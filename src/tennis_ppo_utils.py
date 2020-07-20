@@ -133,6 +133,11 @@ def clipped_surrogate(old_prob_batch, new_prob_batch, reward_batch,
     assert(torch.isnan(ppo_loss).any() == False)
     return ppo_loss
 
+def calculate_critic_loss(advantage_batch):
+    """ Calculate the loss function for the Critic. """
+    critic_loss = 0.5 * advantage_batch.pow(2)
+    return critic_loss
+
 def calculate_entropy(old_prob_batch, new_prob_batch):
     entropy = -(torch.exp(new_prob_batch) * (old_prob_batch + 1e-10) + \
               (1.0 - torch.exp(new_prob_batch)) * (1.0 - old_prob_batch + 1e-10))
@@ -149,17 +154,18 @@ def run_training_epoch(policy, optimizer, replayBuffer,
     num_batches = int(np.ceil(num_samples/batch_size))
 
     for batch_index in range(num_batches):
-        (old_prob_batch, state_batch, action_batch, reward_batch) = replayBuffer.sample()
+        (old_prob_batch, state_batch, action_batch, advantage_batch) = replayBuffer.sample()
         new_prob_batch_raw = calculate_new_log_probs(policy, state_batch, action_batch)
         new_prob_batch_shape = new_prob_batch_raw.shape    # should be B x 2 x 2
         assert(new_prob_batch_shape[1] == 2)
         assert(new_prob_batch_shape[2] == 2)
         new_prob_batch = torch.sum(new_prob_batch_raw, axis=2)
     
-        ppo_loss = clipped_surrogate(old_prob_batch, new_prob_batch, reward_batch,
+        ppo_loss = clipped_surrogate(old_prob_batch, new_prob_batch, advantage_batch,
                                      discount=discount, epsilon=epsilon, beta=beta)
+        critic_loss = calculate_critic_loss(advantage_batch)
         entropy = calculate_entropy(old_prob_batch, new_prob_batch)
-        batch_loss = -torch.mean(ppo_loss + beta*entropy)
+        batch_loss = -torch.mean(ppo_loss + critic_loss + beta*entropy)
 
         optimizer.zero_grad()
         batch_loss.backward()
