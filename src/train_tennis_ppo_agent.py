@@ -8,7 +8,7 @@ import torch
 import torch.optim as optim
 import tennis_ppo_utils
 import TennisActorCritic
-import ReplayBuffer
+import TrajectoryBuffer
 import matplotlib.pyplot as plt
 from collections import deque
 
@@ -30,8 +30,8 @@ use_high_score_replay_buffer = False
 env = UnityEnvironment(file_name="Tennis.exe")
 num_agents = 2
 agent = TennisActorCritic.TennisActorCritic()
-replay_buffer = ReplayBuffer.ReplayBuffer(batch_size=batch_size, num_batches=num_epochs_per_episode)
-high_score_replay_buffer = ReplayBuffer.ReplayBuffer(batch_size=batch_size, num_batches=num_epochs_per_episode)
+replay_buffer = TrajectoryBuffer.TrajectoryBuffer(batch_size=batch_size, num_batches=num_epochs_per_episode)
+high_score_replay_buffer = TrajectoryBuffer.TrajectoryBuffer(batch_size=batch_size, num_batches=num_epochs_per_episode)
 optimizer = optim.Adam(agent.parameters(), lr=learning_rate)
 
 # Initialize scores, etc.

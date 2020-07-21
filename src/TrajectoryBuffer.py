@@ -1,10 +1,10 @@
-""" ReplayBuffer.py """
+""" TrajectoryBuffer.py """
 
 import numpy as np
 import torch
 from collections import deque
 
-class ReplayBuffer:
+class TrajectoryBuffer:
 
     def __init__(self, buffer_size=1280, batch_size=128, num_batches=10):
         self.prob_memory = deque(maxlen=buffer_size)
