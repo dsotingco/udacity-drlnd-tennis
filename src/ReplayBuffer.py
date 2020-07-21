@@ -10,7 +10,8 @@ class ReplayBuffer:
         self.prob_memory = deque(maxlen=buffer_size)
         self.state_memory = deque(maxlen=buffer_size)
         self.action_memory = deque(maxlen=buffer_size)
-        self.reward_memory = deque(maxlen=buffer_size)
+        self.reward_memory = deque(maxlen=buffer_size) # for discounted_future_rewards
+        self.state_value_memory = deque(maxlen=buffer_size)
         self.batch_size = batch_size
         self.sampled_count = 0
 
@@ -22,12 +23,14 @@ class ReplayBuffer:
         self.state_memory.clear()
         self.action_memory.clear()
         self.reward_memory.clear()
+        self.state_value_memory.clear()
 
-    def add_episode(self, prob_list, state_list, action_list, processed_reward_list):
+    def add_episode(self, prob_list, state_list, action_list, processed_reward_list, state_value_list):
         self.prob_memory.extend(prob_list)
         self.state_memory.extend(state_list)
         self.action_memory.extend(action_list)
         self.reward_memory.extend(processed_reward_list)
+        self.state_value_memory.extend(state_value_list)
 
     def sample(self):
         assert self.has_enough_samples()
@@ -41,15 +44,18 @@ class ReplayBuffer:
         state_tensor = torch.tensor(list(self.state_memory), dtype=torch.float).detach()
         action_tensor = torch.stack(list(self.action_memory)).detach()
         reward_tensor = torch.tensor(list(self.reward_memory), dtype=torch.float)
+        state_value_tensor = torch.transpose(torch.cat(list(self.state_value_memory), axis=1), 0, 1).detach()
 
         old_prob_batch = old_prob_tensor_summed[0 : self.batch_size]
         state_batch = state_tensor[0 : self.batch_size]
         action_batch = action_tensor[0 : self.batch_size]
         reward_batch = reward_tensor[0 : self.batch_size]
+        state_value_batch = state_value_tensor[0 : self.batch_size]
 
         assert(old_prob_batch.shape == torch.Size([self.batch_size,2]))
         assert(state_batch.shape == torch.Size([self.batch_size,2,24]))
         assert(action_batch.shape == torch.Size([self.batch_size,2,2]))
         assert(reward_batch.shape == torch.Size([self.batch_size,2]))
+        assert(state_value_batch.shape == torch.Size([self.batch_size,2]))
 
-        return (old_prob_batch, state_batch, action_batch, reward_batch)
+        return (old_prob_batch, state_batch, action_batch, reward_batch, state_value_batch)

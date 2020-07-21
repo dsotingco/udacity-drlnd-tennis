@@ -75,28 +75,28 @@ def collect_trajectories(env, policy):
 
     return prob_list, state_list, action_list, reward_list, state_value_list, max_agent_score
 
-def calculate_advantage(reward_list, state_value_list, discount=0.995):
-    """ Calculate advantage for one run of collect_trajectories().  
-    Outputs normalized, discounted, future rewards as a matrix of 
-    num_timesteps rows, and num_agents columns."""
-    assert( len(reward_list) == len(state_value_list) )
+def calculate_discounted_future_rewards(reward_list, discount=0.995):
     # calculate discounted rewards
     discount_array = discount ** np.arange(len(reward_list))
     discounted_rewards = np.asarray(reward_list) * discount_array[:,np.newaxis]
 
     # calculate future discounted rewards
-    future_rewards = discounted_rewards[::-1].cumsum(axis=0)[::-1]
-    state_value_array = torch.transpose(torch.cat(state_value_list, axis=1), 0, 1).detach().numpy()
-    assert(future_rewards.shape == state_value_array.shape)
+    discounted_future_rewards = discounted_rewards[::-1].cumsum(axis=0)[::-1]
+    return discounted_future_rewards
 
-    raw_advantage = future_rewards - state_value_array
+def calculate_normalized_advantage(discounted_future_rewards, state_value_batch, discount=0.995):
+    """ Calculate advantage for one run of collect_trajectories().  
+    Outputs normalized, discounted, future rewards as a matrix of 
+    num_timesteps rows, and num_agents columns."""
+    assert(discounted_future_rewards.shape == state_value_batch.shape)
+    raw_advantage = (discounted_future_rewards - state_value_batch).numpy()
 
     # normalize the advantage
     mean = np.mean(raw_advantage, axis=1)
     std = np.std(raw_advantage, axis=1) + 1.0e-10
     normalized_advantage = (raw_advantage - mean[:,np.newaxis]) / std[:,np.newaxis]
     assert(np.isnan(normalized_advantage).any() == False)
-    return normalized_advantage
+    return torch.tensor(normalized_advantage, dtype=torch.float)
 
 def calculate_new_log_probs(policy, state_batch, action_batch):
     """ Calculate new log probabilities of the actions, 
@@ -133,18 +133,11 @@ def clipped_surrogate(old_prob_batch, new_prob_batch, reward_batch,
     assert(torch.isnan(ppo_loss).any() == False)
     return ppo_loss
 
-def calculate_critic_loss(reward_list, state_value_list):
+def calculate_critic_loss(discounted_future_rewards, state_value_batch):
     """ Calculate the loss function for the Critic. """
-    assert( len(reward_list) == len(state_value_list) )
-    # calculate discounted rewards
-    discount_array = discount ** np.arange(len(reward_list))
-    discounted_rewards = np.asarray(reward_list) * discount_array[:,np.newaxis]
-
-    # calculate future discounted rewards
-    future_rewards = discounted_rewards[::-1].cumsum(axis=0)[::-1]
-    state_value_array = torch.transpose(torch.cat(state_value_list, axis=1), 0, 1).detach().numpy()
-    assert(future_rewards.shape == state_value_array.shape)
-    critic_error = future_rewards - state_value_array
+    # state_value_array = torch.transpose(torch.cat(state_value_list, axis=1), 0, 1).detach().numpy()
+    assert(discounted_future_rewards.shape == state_value_batch.shape)
+    critic_error = discounted_future_rewards - state_value_batch
 
     # calculate half-squared-error
     critic_loss = 0.5 * critic_error.pow(2)
@@ -165,17 +158,18 @@ def run_training_epoch(policy, optimizer, replayBuffer,
     num_samples = len(replayBuffer.state_memory)
     num_batches = int(np.ceil(num_samples/batch_size))
 
-    for batch_index in range(num_batches):
-        (old_prob_batch, state_batch, action_batch, advantage_batch) = replayBuffer.sample()
+    for _batch_index in range(num_batches):
+        (old_prob_batch, state_batch, action_batch, discounted_future_rewards_batch, state_value_batch) = replayBuffer.sample()
         new_prob_batch_raw = calculate_new_log_probs(policy, state_batch, action_batch)
         new_prob_batch_shape = new_prob_batch_raw.shape    # should be B x 2 x 2
         assert(new_prob_batch_shape[1] == 2)
         assert(new_prob_batch_shape[2] == 2)
         new_prob_batch = torch.sum(new_prob_batch_raw, axis=2)
     
+        advantage_batch = calculate_normalized_advantage(discounted_future_rewards_batch, state_value_batch)
         ppo_loss = clipped_surrogate(old_prob_batch, new_prob_batch, advantage_batch,
                                      discount=discount, epsilon=epsilon, beta=beta)
-        critic_loss = calculate_critic_loss(advantage_batch)
+        critic_loss = calculate_critic_loss(discounted_future_rewards_batch, state_value_batch)
         entropy = calculate_entropy(old_prob_batch, new_prob_batch)
         batch_loss = -torch.mean(ppo_loss + critic_loss + beta*entropy)
 

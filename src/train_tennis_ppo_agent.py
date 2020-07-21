@@ -45,13 +45,14 @@ scores_window = deque(maxlen=100)
 for episode in range(num_episodes):
     # Collect trajectories
     (prob_list, state_list, action_list, reward_list, state_value_list, episode_score) = tennis_ppo_utils.collect_trajectories(env, agent)
-    actor_critic_advantage = tennis_ppo_utils.calculate_advantage(reward_list, state_value_list)
+    # actor_critic_advantage = tennis_ppo_utils.calculate_normalized_advantage(reward_list, state_value_list)
+    discounted_future_rewards = tennis_ppo_utils.calculate_discounted_future_rewards(reward_list, discount)
     if(episode_score > replay_buffer_store_threshold):
-        replay_buffer.add_episode(prob_list, state_list, action_list, actor_critic_advantage.tolist())
+        replay_buffer.add_episode(prob_list, state_list, action_list, discounted_future_rewards.tolist(), state_value_list)
     if(episode_score >= high_score):
         high_score = episode_score
         print("high score:", high_score)
-        high_score_replay_buffer.add_episode(prob_list, state_list, action_list, actor_critic_advantage.tolist())
+        high_score_replay_buffer.add_episode(prob_list, state_list, action_list, discounted_future_rewards.tolist(), state_value_list)
 
     # Process scores
     episode_scores.append(episode_score)
