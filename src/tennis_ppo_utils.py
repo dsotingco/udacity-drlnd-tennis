@@ -137,10 +137,11 @@ def calculate_critic_loss(discounted_future_rewards, state_value_batch):
     """ Calculate the loss function for the Critic. """
     # state_value_array = torch.transpose(torch.cat(state_value_list, axis=1), 0, 1).detach().numpy()
     assert(discounted_future_rewards.shape == state_value_batch.shape)
-    critic_error = discounted_future_rewards - state_value_batch
+    critic_error = discounted_future_rewards - state_value_batch    # critic_error is B x 2 tensor
 
-    # calculate half-squared-error
-    critic_loss = 0.5 * critic_error.pow(2)
+    # calculate half the sum-squared-error
+    critic_loss = 0.5 * torch.sum( critic_error.pow(2), axis=0 )
+    assert(critic_loss.shape == torch.Size([2]))
     return critic_loss
 
 def calculate_entropy(old_prob_batch, new_prob_batch):

@@ -42,6 +42,7 @@ for episode in range(num_episodes):
     # Collect trajectories
     (prob_list, state_list, action_list, reward_list, state_value_list, episode_score) = tennis_ppo_utils.collect_trajectories(env, agent)
     discounted_future_rewards = tennis_ppo_utils.calculate_discounted_future_rewards(reward_list, discount)
+    trajectory_buffer.add_episode(prob_list, state_list, action_list, discounted_future_rewards.tolist(), state_value_list)
     if(episode_score > high_score):
         high_score = episode_score
         print("new high score:", high_score)
