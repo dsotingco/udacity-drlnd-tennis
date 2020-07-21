@@ -58,6 +58,6 @@ class TennisActorCritic(nn.Module):
         y = F.relu(self.critic_fc1(state))
         y = F.relu(self.critic_fc2(y))
         y = F.relu(self.critic_fc3(y))
-        state_value = self.critic_fc4(y)
+        state_value = F.relu(self.critic_fc4(y))
 
         return (actions, log_probs, state_value)
