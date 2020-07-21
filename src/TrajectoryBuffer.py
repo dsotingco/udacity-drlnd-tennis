@@ -6,7 +6,8 @@ from collections import deque
 
 class TrajectoryBuffer:
 
-    def __init__(self, buffer_size=1280, batch_size=128, num_batches=10):
+    def __init__(self, batch_size=128, num_batches=10):
+        buffer_size = batch_size * num_batches
         self.prob_memory = deque(maxlen=buffer_size)
         self.state_memory = deque(maxlen=buffer_size)
         self.action_memory = deque(maxlen=buffer_size)
