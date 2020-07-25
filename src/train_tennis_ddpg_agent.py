@@ -52,7 +52,8 @@ for episode in range(n_episodes):
         next_states = env_info.vector_observations         # get next state (for each agent)
         rewards = env_info.rewards                         # get reward (for each agent)
         dones = env_info.local_done                        # see if episode finished
-        agent.step(states, actions, rewards, next_states, np.any(dones))
+        agent.step(states[0,:], actions[0,:], rewards[0], next_states[0,:], dones[0])
+        agent.step(states[1,:], actions[1,:], rewards[1], next_states[1,:], dones[1])
         scores += env_info.rewards                         # update the score (for each agent)
         states = next_states                               # roll over states to next time step
         if np.any(dones):                                  # exit loop if episode finished
