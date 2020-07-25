@@ -11,8 +11,8 @@ import matplotlib.pyplot as plt
 from collections import deque
 
 # Hyperparameters
-n_episodes = 10
-random_episodes = 5
+n_episodes = 1000
+random_episodes = 100
 max_t = 300
 print_every = 100
 score_save_threshold = 0.25
