@@ -12,7 +12,7 @@ from collections import deque
 
 # Hyperparameters
 n_episodes = 1000
-random_episodes = 100
+random_episodes = 250
 max_t = 300
 print_every = 100
 score_save_threshold = 0.25
@@ -36,6 +36,7 @@ episode_scores = []
 moving_average_x = []
 moving_average_y = []
 scores_window = deque(maxlen=100)
+high_score = 0.0
 
 for episode in range(n_episodes):
     env_info = env.reset(train_mode=True)[brain_name]      # reset the environment    
@@ -61,8 +62,12 @@ for episode in range(n_episodes):
     max_agent_score = np.max(scores)
     episode_scores.append(max_agent_score)
     scores_window.append(max_agent_score)
-    print('Max agent score: {}'.format(max_agent_score))
+    print('Episode {} score: {}'.format(episode, max_agent_score))
+    if(max_agent_score > high_score):
+        high_score = max_agent_score
+        print("new high score: ", high_score)
     if episode % 100 == 0:
+        print('\rEpisode {}\tAverage Score: {:.2f}'.format(episode, np.mean(scores_window)))
         moving_average_x.append(episode)
         moving_average_y.append(np.mean(scores_window))
     if np.mean(scores_window) >= score_solved_threshold:
