@@ -11,7 +11,8 @@ import matplotlib.pyplot as plt
 from collections import deque
 
 # Hyperparameters
-n_episodes = 5
+n_episodes = 10
+random_episodes = 5
 max_t = 300
 print_every = 100
 score_save_threshold = 0.25
@@ -37,15 +38,17 @@ moving_average_y = []
 scores_window = deque(maxlen=100)
 
 for episode in range(n_episodes):
-    env_info = env.reset(train_mode=True)[brain_name]     # reset the environment    
+    env_info = env.reset(train_mode=True)[brain_name]      # reset the environment    
     states = env_info.vector_observations                  # get the current state (for each agent)
     scores = np.zeros(num_agents)                          # initialize the score (for each agent)
     agent.reset()
     while True:
-        #actions = np.random.randn(num_agents, action_size) # select an action (for each agent)
-        #actions = np.clip(actions, -1, 1)                  # all actions between -1 and 1
-        actions = agent.act(states)
-        env_info = env.step(actions)[brain_name]           # send all actions to tne environment
+        if episode < random_episodes:
+            actions = np.random.randn(num_agents, action_size) # select an action (for each agent)
+            actions = np.clip(actions, -1, 1)                  # all actions between -1 and 1
+        else:
+            actions = agent.act(states)
+        env_info = env.step(actions)[brain_name]           # send all actions to the environment
         next_states = env_info.vector_observations         # get next state (for each agent)
         rewards = env_info.rewards                         # get reward (for each agent)
         dones = env_info.local_done                        # see if episode finished
