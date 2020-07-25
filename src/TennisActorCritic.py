@@ -12,19 +12,18 @@ class TennisActorCritic(nn.Module):
                  init_std_deviation=1.0):
         super(TennisActorCritic, self).__init__()
 
-        # Actor layers
-        self.actor_fc1 = nn.Linear(state_size, hidden1_size)
-        self.actor_fc2 = nn.Linear(hidden1_size, hidden2_size)
-        self.actor_fc3 = nn.Linear(hidden2_size, hidden3_size)
-        self.actor_fc4 = nn.Linear(hidden3_size, action_size)
+        # Shared layers to understand the environment
+        self.shared_fc1 = nn.Linear(state_size, hidden1_size)
+        self.shared_fc2 = nn.Linear(hidden1_size, hidden2_size)
+        self.shared_fc3 = nn.Linear(hidden2_size, hidden3_size)
+
+        # Actor layer(s), parameters
+        self.actor_fc1 = nn.Linear(hidden3_size, action_size)
         # Output of Actor neural network: [mu1; mu2]
         self.std_deviations = nn.Parameter(init_std_deviation * torch.ones(1, action_size))
 
         # Critic layers
-        self.critic_fc1 = nn.Linear(state_size, hidden1_size)
-        self.critic_fc2 = nn.Linear(hidden1_size, hidden2_size)
-        self.critic_fc3 = nn.Linear(hidden2_size, hidden3_size)
-        self.critic_fc4 = nn.Linear(hidden3_size, 1)
+        self.critic_fc1 = nn.Linear(hidden3_size, 1)
         # Output of Critic neural network: scalar estimate of state value 
 
     def forward(self, state, actions=None, training_mode=True):
@@ -35,11 +34,13 @@ class TennisActorCritic(nn.Module):
         else:
             self.eval()
 
+        # Shared layers
+        x = F.relu(self.shared_fc1(state))
+        x = F.relu(self.shared_fc2(x))
+        x = F.relu(self.shared_fc3(x))
+
         # ACTOR
-        x = F.relu(self.actor_fc1(state))
-        x = F.relu(self.actor_fc2(x))
-        x = F.relu(self.actor_fc3(x))
-        means = torch.tanh(self.actor_fc4(x))
+        means = torch.tanh(self.actor_fc1(x))
         m = torch.distributions.normal.Normal(means, self.std_deviations)
 
         if actions is None:
@@ -55,9 +56,6 @@ class TennisActorCritic(nn.Module):
         log_probs = m.log_prob(actions)
 
         # CRITIC
-        y = F.relu(self.critic_fc1(state))
-        y = F.relu(self.critic_fc2(y))
-        y = F.relu(self.critic_fc3(y))
-        state_value = F.relu(self.critic_fc4(y))
+        state_value = F.relu(self.critic_fc1(x))
 
         return (actions, log_probs, state_value)
