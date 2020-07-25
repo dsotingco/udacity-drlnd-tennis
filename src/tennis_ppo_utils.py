@@ -4,7 +4,7 @@ from unityagents import UnityEnvironment
 import numpy as np
 import torch
 
-def collect_trajectories(env, policy):
+def collect_trajectories(env, actor, critic):
     """ TODO: document the outputs """
     # initialize return variables
     prob_list = []
@@ -28,7 +28,8 @@ def collect_trajectories(env, policy):
 
     # run the agents in the environment
     while True:
-        (actions, probs, state_value) = policy(torch.tensor(states, dtype=torch.float))
+        (actions, probs) = actor(torch.tensor(states, dtype=torch.float))
+        state_value = critic(torch.tensor(states, dtype=torch.float))
         assert(torch.isnan(actions).any() == False)
         assert(torch.isnan(probs).any() == False)
         env_info = env.step(actions.detach().numpy())[brain_name]
@@ -98,12 +99,12 @@ def calculate_normalized_advantage(discounted_future_rewards, state_value_batch,
     assert(np.isnan(normalized_advantage).any() == False)
     return torch.tensor(normalized_advantage, dtype=torch.float)
 
-def calculate_new_log_probs(policy, state_batch, action_batch):
+def calculate_new_log_probs(actor, state_batch, action_batch):
     """ Calculate new log probabilities of the actions, 
         given the states.  To be used during training as the
         policy is changed by the optimizer. 
         Inputs are state and action batches as PyTorch tensors."""
-    (_actions, new_prob_batch, _state_value) = policy(state_batch, actions=action_batch)
+    (_actions, new_prob_batch) = actor(state_batch, actions=action_batch)
     return new_prob_batch
 
 def calculate_probability_ratio(old_prob_batch, new_prob_batch):
@@ -150,18 +151,20 @@ def calculate_entropy(old_prob_batch, new_prob_batch):
     assert(torch.isnan(entropy).any() == False)
     return entropy
 
-def run_training_epoch(policy, optimizer, replayBuffer,
+def run_training_epoch(actor, actor_optimizer, 
+                       critic, critic_optimizer,
+                       trajectory_buffer,
                        discount=0.995,
                        epsilon=0.1,
                        beta=0.01,
                        batch_size=64):
     """ Run 1 training epoch.  Runs batches through training. """
-    num_samples = len(replayBuffer.state_memory)
+    num_samples = len(trajectory_buffer.state_memory)
     num_batches = int(np.ceil(num_samples/batch_size))
 
     for _batch_index in range(num_batches):
-        (old_prob_batch, state_batch, action_batch, discounted_future_rewards_batch, state_value_batch) = replayBuffer.sample()
-        new_prob_batch_raw = calculate_new_log_probs(policy, state_batch, action_batch)
+        (old_prob_batch, state_batch, action_batch, discounted_future_rewards_batch, state_value_batch) = trajectory_buffer.sample()
+        new_prob_batch_raw = calculate_new_log_probs(actor, state_batch, action_batch)
         new_prob_batch_shape = new_prob_batch_raw.shape    # should be B x 2 x 2
         assert(new_prob_batch_shape[1] == 2)
         assert(new_prob_batch_shape[2] == 2)
@@ -170,11 +173,15 @@ def run_training_epoch(policy, optimizer, replayBuffer,
         advantage_batch = calculate_normalized_advantage(discounted_future_rewards_batch, state_value_batch)
         ppo_loss = clipped_surrogate(old_prob_batch, new_prob_batch, advantage_batch,
                                      discount=discount, epsilon=epsilon, beta=beta)
-        critic_loss = calculate_critic_loss(discounted_future_rewards_batch, state_value_batch)
         entropy = calculate_entropy(old_prob_batch, new_prob_batch)
-        batch_loss = -torch.mean(ppo_loss + critic_loss + beta*entropy)
+        actor_loss = -torch.mean(ppo_loss + beta*entropy)
+        critic_loss = calculate_critic_loss(discounted_future_rewards_batch, state_value_batch)
 
-        optimizer.zero_grad()
-        batch_loss.backward()
-        optimizer.step()
+        actor_optimizer.zero_grad()
+        actor_loss.backward()
+        actor_optimizer.step()
+
+        critic_optimizer.zero_grad()
+        critic_loss.backward()
+        critic_optimizer.step()
 

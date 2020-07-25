@@ -7,7 +7,8 @@ import numpy as np
 import torch
 import torch.optim as optim
 import tennis_ppo_utils
-import TennisActorCritic
+import TennisActor
+import TennisCritic
 import TrajectoryBuffer
 import matplotlib.pyplot as plt
 from collections import deque
@@ -26,9 +27,12 @@ score_solved_threshold = 0.60
 # Environment setup
 env = UnityEnvironment(file_name="Tennis.exe")
 num_agents = 2
-agent = TennisActorCritic.TennisActorCritic()
+actor = TennisActor.TennisActor()
+actor_optimizer = optim.Adam(actor.parameters(), lr=learning_rate)
+critic = TennisCritic.TennisCritic()
+critic_optimizer = optim.Adam(critic.parameters(), lr=learning_rate)
 trajectory_buffer = TrajectoryBuffer.TrajectoryBuffer(batch_size=batch_size, num_batches=num_epochs_per_episode)
-optimizer = optim.Adam(agent.parameters(), lr=learning_rate)
+
 
 # Initialize scores, etc.
 high_score = 0.0
@@ -40,7 +44,7 @@ scores_window = deque(maxlen=100)
 # Run episodes and train agent.
 for episode in range(num_episodes):
     # Collect trajectories
-    (prob_list, state_list, action_list, reward_list, state_value_list, episode_score) = tennis_ppo_utils.collect_trajectories(env, agent)
+    (prob_list, state_list, action_list, reward_list, state_value_list, episode_score) = tennis_ppo_utils.collect_trajectories(env, actor, critic)
     discounted_future_rewards = tennis_ppo_utils.calculate_discounted_future_rewards(reward_list, discount)
     trajectory_buffer.add_episode(prob_list, state_list, action_list, discounted_future_rewards.tolist(), state_value_list)
     if(episode_score > high_score):
@@ -64,7 +68,7 @@ for episode in range(num_episodes):
         # print("training...")
         # Run training epochs
         for epoch in range(num_epochs_per_episode):
-            tennis_ppo_utils.run_training_epoch(agent, optimizer, trajectory_buffer,
+            tennis_ppo_utils.run_training_epoch(actor, actor_optimizer, critic, critic_optimizer, trajectory_buffer,
                                             discount=discount, epsilon=epsilon, beta=beta, batch_size=batch_size)
             trajectory_buffer.clear()
 
