@@ -88,15 +88,16 @@ def calculate_normalized_advantage(discounted_future_rewards, state_value_batch,
     """ Calculate advantage for one run of collect_trajectories().  
     Outputs normalized, discounted, future rewards as a matrix of 
     num_timesteps rows, and num_agents columns."""
-    assert(discounted_future_rewards.shape == state_value_batch.shape)
-    raw_advantage = (discounted_future_rewards - state_value_batch).numpy()
+    assert(discounted_future_rewards.shape == state_value_batch.shape)    # Each is B x 2
+    raw_advantage = discounted_future_rewards - state_value_batch
 
     # normalize the advantage
-    mean = np.mean(raw_advantage, axis=1)
-    std = np.std(raw_advantage, axis=1) + 1.0e-10
+    mean = raw_advantage.mean(axis=1)
+    std = raw_advantage.std(axis=1)
     normalized_advantage = (raw_advantage - mean[:,np.newaxis]) / std[:,np.newaxis]
     assert(np.isnan(normalized_advantage).any() == False)
-    return torch.tensor(normalized_advantage, dtype=torch.float)
+    assert(isinstance(normalized_advantage, torch.Tensor))
+    return normalized_advantage
 
 def calculate_new_log_probs(policy, state_batch, action_batch):
     """ Calculate new log probabilities of the actions, 
