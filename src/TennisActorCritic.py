@@ -56,6 +56,6 @@ class TennisActorCritic(nn.Module):
         log_probs = m.log_prob(actions)
 
         # CRITIC
-        state_value = F.relu(self.critic_fc1(x))
+        state_value = self.critic_fc1(x)
 
         return (actions, log_probs, state_value)
