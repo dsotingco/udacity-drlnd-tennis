@@ -34,8 +34,8 @@ class TennisActorCritic(nn.Module):
             self.eval()
 
         # Shared layers
-        x = F.relu(self.shared_fc1(state))
-        x = F.relu(self.shared_fc2(x))
+        x = F.leaky_relu(self.shared_fc1(state))
+        x = F.leaky_relu(self.shared_fc2(x))
 
         # ACTOR
         means = torch.tanh(self.actor_fc1(x))
