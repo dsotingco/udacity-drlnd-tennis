@@ -141,7 +141,7 @@ def calculate_critic_loss(discounted_future_rewards, state_value_batch, critic_d
     critic_error = discounted_future_rewards - state_value_batch    # critic_error is B x 2 tensor
 
     # calculate the sum-squared-error, scaled by critic_discount
-    critic_loss = critic_discount * torch.sum( critic_error.pow(2), axis=0 )
+    critic_loss = critic_discount * torch.sum( critic_error.pow(2), dim=0 )
     assert(critic_loss.shape == torch.Size([2]))
     return critic_loss
 
@@ -166,7 +166,7 @@ def run_training_epoch(policy, optimizer, replayBuffer,
         new_prob_batch_shape = new_prob_batch_raw.shape    # should be B x 2 x 2
         assert(new_prob_batch_shape[1] == 2)
         assert(new_prob_batch_shape[2] == 2)
-        new_prob_batch = torch.sum(new_prob_batch_raw, axis=2)
+        new_prob_batch = torch.sum(new_prob_batch_raw, dim=2)
     
         advantage_batch = calculate_normalized_advantage(discounted_future_rewards_batch, state_value_batch)
         ppo_loss = clipped_surrogate(old_prob_batch, new_prob_batch, advantage_batch,
