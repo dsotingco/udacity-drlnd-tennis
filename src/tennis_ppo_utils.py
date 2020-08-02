@@ -86,10 +86,13 @@ def calculate_advantage(reward_list, state_list, agent, discount=0.995):
     advantage_list = []
     for index, reward in enumerate(reward_list):
         if index < ( len(reward_list) - 1 ):
+            # Get V(s'), i.e. future_state_value, from the Critic 
             ( _actions, _log_probs, future_state_value) = agent(torch.tensor(state_list[index+1], dtype=torch.float))
             future_state_value = torch.squeeze(future_state_value)
+            # Get V(s), i.e. state_value, from the Critic
             ( _actions, _log_probs, state_value) = agent(torch.tensor(state_list[index], dtype=torch.float))
             state_value = torch.squeeze(state_value)
+            # Calculate the advantage: A = r + gamma * V(s') - V(s)
             advantage = torch.tensor(reward, dtype=torch.float) + discount * future_state_value - state_value
         else:
             # handle the last reward, where there's no next state
