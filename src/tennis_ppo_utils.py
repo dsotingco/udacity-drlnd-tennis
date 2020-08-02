@@ -189,7 +189,7 @@ def run_training_epoch(policy, optimizer, replayBuffer,
                                      discount=discount, epsilon=epsilon, beta=beta)
         critic_loss = calculate_critic_loss(advantage_batch)
         entropy = calculate_entropy(old_prob_batch, new_prob_batch)
-        batch_loss = -torch.mean(ppo_loss + critic_loss + beta*entropy)
+        batch_loss = -torch.mean(ppo_loss + beta*entropy - critic_loss)    # TODO: check sign for critic_loss
 
         optimizer.zero_grad()
         batch_loss.backward()
