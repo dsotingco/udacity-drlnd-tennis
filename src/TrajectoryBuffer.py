@@ -48,7 +48,7 @@ class TrajectoryBuffer:
         old_prob_tensor_summed = torch.sum(old_prob_tensor, dim=2)    # TODO: is dim=2 correct?
         state_tensor = torch.tensor(list(self.state_memory), dtype=torch.float).detach()
         action_tensor = torch.stack(list(self.action_memory)).detach()
-        reward_tensor = torch.tensor(list(self.reward_memory), dtype=torch.float)
+        reward_tensor = torch.stack(list(self.reward_memory)).detach()
         state_value_tensor = torch.transpose(torch.cat(list(self.state_value_memory), dim=1), 0, 1).detach()
 
         old_prob_batch = old_prob_tensor_summed[sample_start_index : sample_end_index]
