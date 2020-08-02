@@ -107,17 +107,11 @@ def calculate_discounted_future_rewards(reward_list, discount=0.995):
     discounted_future_rewards = discounted_rewards[::-1].cumsum(axis=0)[::-1]
     return discounted_future_rewards
 
-def calculate_normalized_advantage(discounted_future_rewards, state_value_batch, discount=0.995):
-    """ Calculate advantage for one run of collect_trajectories().  
-    Outputs normalized, discounted, future rewards as a matrix of 
-    num_timesteps rows, and num_agents columns."""
-    assert(discounted_future_rewards.shape == state_value_batch.shape)    # Each is B x 2
-    raw_advantage = discounted_future_rewards - state_value_batch
-
-    # normalize the advantage
-    mean = raw_advantage.mean(axis=1)
-    std = raw_advantage.std(axis=1)
-    normalized_advantage = (raw_advantage - mean[:,np.newaxis]) / std[:,np.newaxis]
+def calculate_normalized_advantage(advantage_batch):
+    """ Normalize an advantage batch."""
+    mean = advantage_batch.mean(axis=1)
+    std = advantage_batch.std(axis=1)
+    normalized_advantage = (advantage_batch - mean[:,np.newaxis]) / std[:,np.newaxis]
     assert(np.isnan(normalized_advantage).any() == False)
     assert(isinstance(normalized_advantage, torch.Tensor))
     return normalized_advantage
@@ -180,14 +174,15 @@ def run_training_epoch(policy, optimizer, replayBuffer,
     num_batches = int(np.ceil(num_samples/batch_size))
 
     for _batch_index in range(num_batches):
-        (old_prob_batch, state_batch, action_batch, advantage_batch, state_value_batch) = replayBuffer.sample()
+        (old_prob_batch, state_batch, action_batch, advantage_batch, _state_value_batch) = replayBuffer.sample()
         new_prob_batch_raw = calculate_new_log_probs(policy, state_batch, action_batch)
         new_prob_batch_shape = new_prob_batch_raw.shape    # should be B x 2 x 2
         assert(new_prob_batch_shape[1] == 2)
         assert(new_prob_batch_shape[2] == 2)
         new_prob_batch = torch.sum(new_prob_batch_raw, dim=2)
     
-        ppo_loss = clipped_surrogate(old_prob_batch, new_prob_batch, advantage_batch,
+        normalized_advantage_batch = calculate_normalized_advantage(advantage_batch)
+        ppo_loss = clipped_surrogate(old_prob_batch, new_prob_batch, normalized_advantage_batch,
                                      discount=discount, epsilon=epsilon, beta=beta)
         critic_loss = calculate_critic_loss(advantage_batch)
         entropy = calculate_entropy(old_prob_batch, new_prob_batch)
