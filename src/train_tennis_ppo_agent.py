@@ -14,7 +14,7 @@ from collections import deque
 
 # Hyperparameters
 learning_rate = 2e-4
-num_episodes = 5001
+num_episodes = 101
 discount = 0.995
 epsilon = 0.10
 beta = 0.02
@@ -42,7 +42,8 @@ for episode in range(num_episodes):
     # Collect trajectories
     (prob_list, state_list, action_list, reward_list, state_value_list, episode_score) = tennis_ppo_utils.collect_trajectories(env, agent)
     advantage_list = tennis_ppo_utils.calculate_advantage(reward_list, state_list, agent)
-    trajectory_buffer.add_episode(prob_list, state_list, action_list, advantage_list, state_value_list)
+    returns_list = tennis_ppo_utils.calculate_discounted_future_rewards(reward_list, discount=discount)
+    trajectory_buffer.add_episode(prob_list, state_list, action_list, advantage_list, returns_list, state_value_list)
     if(episode_score > high_score):
         high_score = episode_score
         print("new high score:", high_score)

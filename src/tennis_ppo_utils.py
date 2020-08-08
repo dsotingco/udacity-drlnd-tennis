@@ -154,10 +154,11 @@ def clipped_surrogate(old_prob_batch, new_prob_batch, reward_batch,
     assert(torch.isnan(ppo_loss).any() == False)
     return ppo_loss
 
-def calculate_critic_loss(advantage_batch, critic_discount=0.5):
+def calculate_critic_loss(returns_batch, state_value_batch, critic_discount=0.5):
     """ Calculate the loss function for the Critic. """
     # calculate the sum-squared-error, scaled by critic_discount
-    critic_loss = critic_discount * torch.sum( advantage_batch.pow(2), dim=0 )
+    critic_error = returns_batch - state_value_batch
+    critic_loss = critic_discount * torch.sum( critic_error.pow(2), dim=0 )
     assert(critic_loss.shape == torch.Size([2]))
     return critic_loss
 
@@ -177,7 +178,7 @@ def run_training_epoch(policy, optimizer, replayBuffer,
     num_batches = int(np.ceil(num_samples/batch_size))
 
     for _batch_index in range(num_batches):
-        (old_prob_batch, state_batch, action_batch, advantage_batch, _state_value_batch) = replayBuffer.sample()
+        (old_prob_batch, state_batch, action_batch, advantage_batch, returns_batch, state_value_batch) = replayBuffer.sample()
         new_prob_batch_raw = calculate_new_log_probs(policy, state_batch, action_batch)
         new_prob_batch_shape = new_prob_batch_raw.shape    # should be B x 2 x 2
         assert(new_prob_batch_shape[1] == 2)
@@ -187,7 +188,8 @@ def run_training_epoch(policy, optimizer, replayBuffer,
         normalized_advantage_batch = calculate_normalized_advantage(advantage_batch)
         ppo_loss = clipped_surrogate(old_prob_batch, new_prob_batch, normalized_advantage_batch,
                                      discount=discount, epsilon=epsilon, beta=beta)
-        critic_loss = calculate_critic_loss(advantage_batch)
+        # TODO: pass returns_batch into critic loss below
+        critic_loss = calculate_critic_loss(returns_batch, state_value_batch)
         entropy = calculate_entropy(old_prob_batch, new_prob_batch)
         batch_loss = -torch.mean(ppo_loss + beta*entropy - critic_loss)    # TODO: check sign for critic_loss
 
