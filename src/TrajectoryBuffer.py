@@ -76,6 +76,7 @@ class TrajectoryBuffer:
                         advantages = self.advantage_memory,
                         log_probs  = self.log_prob_memory )
         data_torch = { key: torch.as_tensor(value, dtype=torch.float32) for key,value in data_np.items() }
+        return data_torch
 
 
 
