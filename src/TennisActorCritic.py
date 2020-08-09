@@ -3,57 +3,69 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+""" Redo of my Actor/Critic PPO setup.  Now modeled after the OpenAI SpinningUp
+reference implementation of PPO. """
 
-class TennisActorCritic(nn.Module):
-    """ Policy model. """
+def TennisActor(nn.Module):
+    def __init__(self, state_size=24, hidden1_size=64, hidden2_size=64, action_size=2):
+        super().__init__()
 
-    def __init__(self, state_size=24, hidden1_size=64, hidden2_size=64, action_size=2, 
-                 init_std_deviation=1.0):
-        super(TennisActorCritic, self).__init__()
+        # Standard deviation parameters
+        log_std = -0.5 * np.ones(action_size, dtype=np.float32)
+        self.log_std = torch.nn.Parameter(torch.as_tensor(log_std))
 
-        # Shared layers to understand the environment
-        self.shared_fc1 = nn.Linear(state_size, hidden1_size)
-        self.shared_fc2 = nn.Linear(hidden1_size, hidden2_size)
+        # Network layers
+        self.fc1 = nn.Linear(state_size, hidden1_size)
+        self.fc2 = nn.Linear(hidden1_size, hidden2_size)
+        self.fc3 = nn.Linear(hidden2_size, action_size)
 
-        # Actor layer(s), parameters
-        self.actor_fc1 = nn.Linear(hidden2_size, action_size)
-        # Output of Actor neural network: [mu1; mu2]
-        self.std_deviations = nn.Parameter(init_std_deviation * torch.ones(1, action_size))
+    def _distribution(self, states):
+        x = F.leaky_relu(self.fc1(states))
+        x = F.leaky_relu(self.fc2(x))
+        means = torch.tanh(self.fc3(x))
+        std = torch.exp(self.log_std)
+        return Normal(means, std)
 
-        # Critic layers
-        self.critic_fc1 = nn.Linear(hidden2_size, 1)
-        # Output of Critic neural network: scalar estimate of state value 
+    def _log_prob_from_distribution(self, distribution, actions):
+        return distribution.log_prob(actions).sum(axis=-1)
 
-    def forward(self, state, actions=None, training_mode=True):
-        """ Run the neural network and sample the distribution for actions. """
-        assert(torch.isnan(state).any() == False)
-        if training_mode:
-            self.train()
-        else:
-            self.eval()
+    def forward(self, states, actions=None):
+        distribution = self._distribution(states)
+        log_probs = None
+        if actions is not None:
+            log_probs = self._log_prob_from_distribution(distribution, actions)
+        return distribution, log_probs
 
-        # Shared layers
-        x = F.leaky_relu(self.shared_fc1(state))
-        x = F.leaky_relu(self.shared_fc2(x))
+def TennisCritic(nn.Module):
+    def __init__(self, state_size=24, hidden1_size=64, hidden2_size=64):
+        super().__init__()
 
-        # ACTOR
-        means = torch.tanh(self.actor_fc1(x))
-        m = torch.distributions.normal.Normal(means, self.std_deviations)
+        # Network layers
+        self.fc1 = nn.Linear(state_size, hidden1_size)
+        self.fc2 = nn.Linear(hidden1_size, hidden2_size)
+        self.fc3 = nn.Linear(hidden2_size, 1)
 
-        if actions is None:
-            if training_mode:
-                raw_nn_actions = m.sample()
-            else:
-                raw_nn_actions = means
-            actions = raw_nn_actions
-        assert(torch.isnan(actions).any() == False)
+    def forward(self, states):
+        x = F.leaky_relu(self.fc1(states))
+        x = F.leaky_relu(self.fc2(x))
+        state_values = nn.Identity(self.fc3(x))
+        
+        return torch.squeeze(state_values, -1)
 
-        # NOTE: These are technically not log probabilities, but rather
-        # logs of the probability density functions.
-        log_probs = m.log_prob(actions)
+def TennisActorCritic(nn.Module):
+    def __init__(self, state_size=24, hidden1_size = 64, hidden2_size=64, action_size=2):
+        super().__init()
+        self.actor = TennisActor(state_size, hidden1_size, hidden2_size, action_size)
+        self.critic = TennisCritic(state_size, hidden1_size, hidden2_size)
 
-        # CRITIC
-        state_value = self.critic_fc1(x)
+    def step(self, states):
+        with torch.no_grad():
+            distribution = self.actor._distribution(states)
+            actions = distribution.sample()
+            log_probs = self.actor._log_prob_from_distribution(distribution, actions)
+            state_values = self.critic(states)
+        return actions.numpy(), state_values.numpy(), log_probs.numpy()
 
-        return (actions, log_probs, state_value)
+    def act(self, states):
+        return self.step(states)[0]
+
