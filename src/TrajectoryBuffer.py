@@ -2,65 +2,84 @@
 
 import numpy as np
 import torch
-from collections import deque
+import tennis_ppo_utils
 
 class TrajectoryBuffer:
+    """
+    A class for storing samples for training by a PPO agent.  
+    Modeled after the PPOBuffer from OpenAI SpinningUp.
+    """
 
-    def __init__(self, batch_size=128, num_batches=10):
-        buffer_size = batch_size * num_batches
-        self.prob_memory = deque(maxlen=buffer_size)
-        self.state_memory = deque(maxlen=buffer_size)
-        self.action_memory = deque(maxlen=buffer_size)
-        self.reward_memory = deque(maxlen=buffer_size) # for discounted_future_rewards
-        self.state_value_memory = deque(maxlen=buffer_size)
-        self.batch_size = batch_size
-        self.num_batches = num_batches
-        self.sampled_count = 0
-        self.sample_indices = np.arange(buffer_size)
+    def __init__(self, state_size=24, action_size=2, buffer_size, 
+                 discount_gamma=0.99, gae_lambda=0.95):
+        self.state_memory       = np.zeros( (size, state_size), dtype=np.float32 )
+        self.action_memory      = np.zeros( (size, action_size), dtype=np.float32 )
+        self.advantage_memory   = np.zeros(size, dtype=np.float32)
+        self.reward_memory      = np.zeros(size, dtype=np.float32)
+        self.returns_memory     = np.zeros(size, dtype=np.float32)
+        self.state_value_memory = np.zeros(size, dtype=np.float32)
+        self.log_prob_memory    = np.zeros(size, dtype=np.float32)
 
-    def has_enough_samples(self):
-        return ( len(self.state_memory) >= ( self.batch_size * self.num_batches ) )
+        self.discount_gamma = discount_gamma
+        self.gae_lambda = gae_lambda
 
-    def clear(self):
-        self.prob_memory.clear()
-        self.state_memory.clear()
-        self.action_memory.clear()
-        self.reward_memory.clear()
-        self.state_value_memory.clear()
-        self.sampled_count = 0
+        self.iter = 0
+        self.episode_start_index = 0
+        self.buffer_size = buffer_size
 
-    def add_episode(self, prob_list, state_list, action_list, processed_reward_list, state_value_list):
-        self.prob_memory.extend(prob_list)
-        self.state_memory.extend(state_list)
-        self.action_memory.extend(action_list)
-        self.reward_memory.extend(processed_reward_list)
-        self.state_value_memory.extend(state_value_list)
+    def store(self, states, actions, rewards, state_values, log_probs):
+        assert self.iter < self.buffer_size
+        self.state_memory      [ self.iter ] = states
+        self.action_memory     [ self.iter ] = actions
+        self.reward_memory     [ self.iter ] = rewards
+        self.state_value_memory[ self.iter ] = state_values
+        self.log_prob_memory   [ self.iter ] = log_probs
+        self.iter += 1
 
-    def sample(self):
-        assert self.has_enough_samples()
-        if self.sampled_count == 0:
-            np.random.shuffle(self.sample_indices)
-        sample_start_index = self.sampled_count * self.batch_size
-        sample_end_index = sample_start_index + self.batch_size
-        self.sampled_count += 1
+    def finish_episode(self, last_value=0):
+        """
+        Function to be used at the end of an episode, or when the buffer is full.
+        Resets the buffer iterator and also performs calculations that can
+        only be done at the end, specifically advantages and returns.
 
-        old_prob_tensor = torch.stack(list(self.prob_memory)).detach()
-        old_prob_tensor_summed = torch.sum(old_prob_tensor, dim=2)    # TODO: is dim=2 correct?
-        state_tensor = torch.tensor(list(self.state_memory), dtype=torch.float).detach()
-        action_tensor = torch.stack(list(self.action_memory)).detach()
-        reward_tensor = torch.tensor(list(self.reward_memory), dtype=torch.float)
-        state_value_tensor = torch.transpose(torch.cat(list(self.state_value_memory), dim=1), 0, 1).detach()
+        The last_value argument should be 0 if the episode ended from the agent
+        having reached a terminal state, and otherwise whould be V(s_T), the value
+        function estimated for the last state.
+        """
+        traj_slice = slice(self.episode_start_index, self.iter)
+        rewards = np.append(self.reward_memory[ traj_slice ], last_value)
+        state_values = np.append(self.state_value_memory[ traj_slice ], last_value)
 
-        old_prob_batch = old_prob_tensor_summed[sample_start_index : sample_end_index]
-        state_batch = state_tensor[sample_start_index : sample_end_index]
-        action_batch = action_tensor[sample_start_index : sample_end_index]
-        reward_batch = reward_tensor[sample_start_index : sample_end_index]
-        state_value_batch = state_value_tensor[sample_start_index : sample_end_index]
+        # Generalized Advantage Estimation (GAE)
+        deltas = rewards[:-1] + self.discount_gamma * state_values[1:] - state_values[:-1]
+        self.advantage_memory[ traj_slice ] = tennis_ppo_utils.discount_cumsum(deltas, self.discount_gamma * self.gae_lambda)
 
-        assert(old_prob_batch.shape == torch.Size([self.batch_size,2]))
-        assert(state_batch.shape == torch.Size([self.batch_size,2,24]))
-        assert(action_batch.shape == torch.Size([self.batch_size,2,2]))
-        assert(reward_batch.shape == torch.Size([self.batch_size,2]))
-        assert(state_value_batch.shape == torch.Size([self.batch_size,2]))
+        # Calculate returns (to be used in critic loss, for training the Critic)
+        self.returns_memory[ traj_slice ] = tennis_ppo_utils.discount_cumsum(rewards, self.discount_gamma)[:-1]
 
-        return (old_prob_batch, state_batch, action_batch, reward_batch, state_value_batch)
+        self.episode_start_index = self.iter
+
+    def get(self):
+        assert self.iter == self.buffer_size
+        # Reset iterators
+        self.iter = 0
+        self.episode_start_index = 0
+
+        # Normalize advantage and replace in advantage_memory
+        normalized_advantage = tennis_ppo_utils.normalize_advantage( self.advantage_memory )
+        self.advantage_memory = normalized_advantage
+
+        # Convert to PyTorch tensors and return data in dictionary
+        data_np = dict( states     = self.state_memory,
+                        actions    = self.action_memory,
+                        returns    = self.returns_memory,
+                        advantages = self.advantage_memory,
+                        log_probs  = self.log_prob_memory )
+        data_torch = { key: torch.as_tensor(value, dtype=torch.float32) for key,value in data_np.items() }
+
+
+
+
+
+
+
