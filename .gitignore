@@ -1,0 +1,7 @@
+*.zip
+*.exe
+*.dll
+src/.vscode/
+src/Tennis_Data
+src/__pycache__/
+src/*.log
