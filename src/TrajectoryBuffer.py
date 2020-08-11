@@ -3,6 +3,25 @@
 import numpy as np
 import torch
 import tennis_ppo_utils
+import scipy.signal
+
+def discount_cumsum(x, discount):
+    # TODO: don't have scipy...either install or rewrite in NumPy
+    """
+    Function to calculate discounted cumulative sums.  Taken from OpenAI SpinningUp.
+
+    input: 
+        vector x, 
+        [x0, 
+         x1, 
+         x2]
+
+    output:
+        [x0 + discount * x1 + discount^2 * x2,  
+         x1 + discount * x2,
+         x2]
+    """
+    return scipy.signal.lfilter([1], [1, float(-discount)], x[::-1], axis=0)[::-1]
 
 class TrajectoryBuffer:
     """
@@ -10,7 +29,7 @@ class TrajectoryBuffer:
     Modeled after the PPOBuffer from OpenAI SpinningUp.
     """
 
-    def __init__(self, state_size=24, action_size=2, buffer_size, 
+    def __init__(self, buffer_size=128, state_size=24, action_size=2,
                  discount_gamma=0.99, gae_lambda=0.95):
         self.state_memory       = np.zeros( (size, state_size), dtype=np.float32 )
         self.action_memory      = np.zeros( (size, action_size), dtype=np.float32 )
@@ -52,10 +71,10 @@ class TrajectoryBuffer:
 
         # Generalized Advantage Estimation (GAE)
         deltas = rewards[:-1] + self.discount_gamma * state_values[1:] - state_values[:-1]
-        self.advantage_memory[ traj_slice ] = tennis_ppo_utils.discount_cumsum(deltas, self.discount_gamma * self.gae_lambda)
+        self.advantage_memory[ traj_slice ] = discount_cumsum(deltas, self.discount_gamma * self.gae_lambda)
 
         # Calculate returns (to be used in critic loss, for training the Critic)
-        self.returns_memory[ traj_slice ] = tennis_ppo_utils.discount_cumsum(rewards, self.discount_gamma)[:-1]
+        self.returns_memory[ traj_slice ] = discount_cumsum(rewards, self.discount_gamma)[:-1]
 
         self.episode_start_index = self.iter
 

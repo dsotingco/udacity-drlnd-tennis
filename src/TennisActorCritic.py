@@ -6,7 +6,7 @@ import numpy as np
 """ Redo of my Actor/Critic PPO setup.  Now modeled after the OpenAI SpinningUp
 reference implementation of PPO. """
 
-def TennisActor(nn.Module):
+class TennisActor(nn.Module):
     def __init__(self, state_size=24, hidden1_size=64, hidden2_size=64, action_size=2):
         super().__init__()
 
@@ -36,7 +36,7 @@ def TennisActor(nn.Module):
             log_probs = self._log_prob_from_distribution(distribution, actions)
         return distribution, log_probs
 
-def TennisCritic(nn.Module):
+class TennisCritic(nn.Module):
     def __init__(self, state_size=24, hidden1_size=64, hidden2_size=64):
         super().__init__()
 
@@ -52,7 +52,7 @@ def TennisCritic(nn.Module):
         
         return torch.squeeze(state_values, -1)
 
-def TennisActorCritic(nn.Module):
+class TennisActorCritic(nn.Module):
     def __init__(self, state_size=24, hidden1_size = 64, hidden2_size=64, action_size=2):
         super().__init()
         self.actor = TennisActor(state_size, hidden1_size, hidden2_size, action_size)

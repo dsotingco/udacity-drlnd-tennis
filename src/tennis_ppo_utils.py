@@ -2,8 +2,9 @@
 
 from unityagents import UnityEnvironment
 import numpy as np
-import scipy.signal
 import torch
+import TennisActorCritic
+import TrajectoryBuffer
 
 def normalize_advantage(advantage_batch):
     assert isinstance(advantage_batch, np.ndarray)
@@ -14,31 +15,11 @@ def normalize_advantage(advantage_batch):
     normalized_advantage = (advantage_batch - mean) / std
     return normalized_advantage
 
-def discount_cumsum(x, discount):
-    """
-    Function to calculate discounted cumulative sums.  Taken from OpenAI SpinningUp.
-
-    input: 
-        vector x, 
-        [x0, 
-         x1, 
-         x2]
-
-    output:
-        [x0 + discount * x1 + discount^2 * x2,  
-         x1 + discount * x2,
-         x2]
-    """
-    return scipy.signal.lfilter([1], [1, float(-discount)], x[::-1], axis=0)[::-1]
-
 def collect_trajectories(env, policy):
     """ TODO: document the outputs """
-    # initialize return variables
-    prob_list = []
-    state_list = []
-    action_list = []
-    reward_list = []
-    state_value_list = []
+    # TODO: have 2 agents or run all inputs through 1 network?
+    # initialize buffer
+    trajBuffer = TrajectoryBuffer.TrajectoryBuffer()
 
     # get the default brain
     brain_name = env.brain_names[0]
@@ -101,4 +82,27 @@ def collect_trajectories(env, policy):
     # print('Max agent score this episode: {}'.format(max_agent_score))
 
     return prob_list, state_list, action_list, reward_list, state_value_list, max_agent_score
+
+def calculate_policy_loss(agent, data, clip_ratio=0.1):
+    # data extraction
+    states         = data['states']
+    actions        = data['actions']
+    advantages     = data['advantages']
+    log_probs_old  = data['log_probs']
+    # log probability calculations
+    distribution, log_probs_new = agent.actor(states, actions)
+    prob_ratio = torch.exp(log_probs_new - log_probs_old)
+    clipped_prob_ratio = torch.clamp(prob_ratio, 1-clip_ratio, 1+clip_ratio)
+    # loss calculations
+    raw_loss = prob_ratio * advantages
+    clipped_loss = clipped_prob_ratio * advantages
+    ppo_loss = -( torch.min(raw_loss, clipped_loss) ).mean()
+    return ppo_loss
+
+def calculate_critic_loss(agent, data):
+    states = data['states']
+    returns = data['returns']
+    state_values = agent.critic(states)
+    critic_loss = ( (state_values - returns)**2 ).mean()
+
 
