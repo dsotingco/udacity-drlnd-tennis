@@ -3,12 +3,12 @@
 import numpy as np
 import torch
 import tennis_ppo_utils
-import scipy.signal
 
 def discount_cumsum(x, discount):
     # TODO: don't have scipy...either install or rewrite in NumPy
     """
-    Function to calculate discounted cumulative sums.  Taken from OpenAI SpinningUp.
+    Function to calculate discounted cumulative sums.  Equation taken from OpenAI SpinningUp,
+    but I re-implemented it in NumPy.
 
     input: 
         vector x, 
@@ -21,7 +21,16 @@ def discount_cumsum(x, discount):
          x1 + discount * x2,
          x2]
     """
-    return scipy.signal.lfilter([1], [1, float(-discount)], x[::-1], axis=0)[::-1]
+    #return scipy.signal.lfilter([1], [1, float(-discount)], x[::-1], axis=0)[::-1]
+    output = np.zeros_like(x, dtype=float)
+    discount_array = discount ** np.arange(len(x))
+    for index, value in enumerate(x):
+        rest_of_array = x[index+1:]
+        discount_multiplier = discount_array[ 1 : len(discount_array) - index ]
+        assert( len(rest_of_array) == len(discount_multiplier) )
+        discounted_future = rest_of_array * discount_multiplier
+        output[index] = value + discounted_future.sum()
+    return output
 
 class TrajectoryBuffer:
     """

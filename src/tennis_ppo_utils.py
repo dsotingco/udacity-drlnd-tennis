@@ -16,7 +16,8 @@ def normalize_advantage(advantage_batch):
     return normalized_advantage
 
 def collect_trajectories(env, policy):
-    """ TODO: document the outputs """
+    """ Collect enough trajectories to fill up a TrajectoryBuffer, 
+    to be used as the data in an epoch for training. """
     # TODO: have 2 agents or run all inputs through 1 network?
     # initialize buffer
     trajBuffer = TrajectoryBuffer.TrajectoryBuffer()
