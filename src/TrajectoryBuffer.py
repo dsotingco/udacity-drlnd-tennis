@@ -5,7 +5,6 @@ import torch
 import tennis_ppo_utils
 
 def discount_cumsum(x, discount):
-    # TODO: don't have scipy...either install or rewrite in NumPy
     """
     Function to calculate discounted cumulative sums.  Equation taken from OpenAI SpinningUp,
     but I re-implemented it in NumPy.
