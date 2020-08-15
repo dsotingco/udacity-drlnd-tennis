@@ -54,7 +54,7 @@ class TennisCritic(nn.Module):
 
 class TennisActorCritic(nn.Module):
     def __init__(self, state_size=24, hidden1_size = 64, hidden2_size=64, action_size=2):
-        super().__init()
+        super().__init__()
         self.actor = TennisActor(state_size, hidden1_size, hidden2_size, action_size)
         self.critic = TennisCritic(state_size, hidden1_size, hidden2_size)
 

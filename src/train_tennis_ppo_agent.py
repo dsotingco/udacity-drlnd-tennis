@@ -27,7 +27,7 @@ score_solved_threshold = 0.60
 env = UnityEnvironment(file_name="Tennis.exe")
 num_agents = 2
 agent = TennisActorCritic.TennisActorCritic()
-trajectory_buffer = TrajectoryBuffer.TrajectoryBuffer(batch_size=batch_size, num_batches=num_epochs_per_episode)
+trajectory_buffer = TrajectoryBuffer.TrajectoryBuffer()
 optimizer = optim.Adam(agent.parameters(), lr=learning_rate)
 
 # Initialize scores, etc.
