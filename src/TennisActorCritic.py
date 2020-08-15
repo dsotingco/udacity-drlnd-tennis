@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.distributions.normal import Normal
 import numpy as np
 
 """ Redo of my Actor/Critic PPO setup.  Now modeled after the OpenAI SpinningUp
@@ -48,8 +49,7 @@ class TennisCritic(nn.Module):
     def forward(self, states):
         x = F.leaky_relu(self.fc1(states))
         x = F.leaky_relu(self.fc2(x))
-        state_values = nn.Identity(self.fc3(x))
-        
+        state_values = self.fc3(x)
         return torch.squeeze(state_values, -1)
 
 class TennisActorCritic(nn.Module):

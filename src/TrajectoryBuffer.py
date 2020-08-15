@@ -39,13 +39,13 @@ class TrajectoryBuffer:
 
     def __init__(self, buffer_size=128, state_size=24, action_size=2,
                  discount_gamma=0.99, gae_lambda=0.95):
-        self.state_memory       = np.zeros( (size, state_size), dtype=np.float32 )
-        self.action_memory      = np.zeros( (size, action_size), dtype=np.float32 )
-        self.advantage_memory   = np.zeros(size, dtype=np.float32)
-        self.reward_memory      = np.zeros(size, dtype=np.float32)
-        self.returns_memory     = np.zeros(size, dtype=np.float32)
-        self.state_value_memory = np.zeros(size, dtype=np.float32)
-        self.log_prob_memory    = np.zeros(size, dtype=np.float32)
+        self.state_memory       = np.zeros( (buffer_size, state_size), dtype=np.float32 )
+        self.action_memory      = np.zeros( (buffer_size, action_size), dtype=np.float32 )
+        self.advantage_memory   = np.zeros(buffer_size, dtype=np.float32)
+        self.reward_memory      = np.zeros(buffer_size, dtype=np.float32)
+        self.returns_memory     = np.zeros(buffer_size, dtype=np.float32)
+        self.state_value_memory = np.zeros(buffer_size, dtype=np.float32)
+        self.log_prob_memory    = np.zeros(buffer_size, dtype=np.float32)
 
         self.discount_gamma = discount_gamma
         self.gae_lambda = gae_lambda
@@ -86,8 +86,11 @@ class TrajectoryBuffer:
 
         self.episode_start_index = self.iter
 
+    def is_full(self):
+        return (self.iter >= self.buffer_size)
+
     def get(self):
-        assert self.iter == self.buffer_size
+        assert self.is_full()
         # Reset iterators
         self.iter = 0
         self.episode_start_index = 0

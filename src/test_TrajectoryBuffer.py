@@ -27,3 +27,22 @@ def test_discount_cumsum_02():
     assert(actual[2] == expected[2])
     assert(actual[3] == expected[3])
     assert((actual == expected).all())
+
+def test_constructor():
+    traj_buffer = TrajectoryBuffer.TrajectoryBuffer()
+    # Memory size checks
+    assert(traj_buffer.state_memory.shape == (128,24))
+    assert(traj_buffer.action_memory.shape == (128,2))
+    assert(traj_buffer.advantage_memory.shape == (128,))
+    assert(traj_buffer.reward_memory.shape == (128,))
+    assert(traj_buffer.returns_memory.shape == (128,))
+    assert(traj_buffer.state_value_memory.shape == (128,))
+    assert(traj_buffer.log_prob_memory.shape == (128,))
+    # Parameter checks
+    assert(traj_buffer.discount_gamma == 0.99)
+    assert(traj_buffer.gae_lambda == 0.95)
+    # Other attributes
+    assert(traj_buffer.iter == 0)
+    assert(traj_buffer.episode_start_index == 0)
+    assert(traj_buffer.buffer_size == 128)
+

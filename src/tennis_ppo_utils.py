@@ -15,12 +15,8 @@ def normalize_advantage(advantage_batch):
     normalized_advantage = (advantage_batch - mean) / std
     return normalized_advantage
 
-def collect_trajectories(env, policy):
-    """ Collect enough trajectories to fill up a TrajectoryBuffer, 
-    to be used as the data in an epoch for training. """
-    # TODO: have 2 agents or run all inputs through 1 network?
-    # initialize buffer
-    trajBuffer = TrajectoryBuffer.TrajectoryBuffer()
+def run_episode(env, agent, traj_buffer):
+    """ Run 1 episode of the Tennis environment with the agent. """
 
     # get the default brain
     brain_name = env.brain_names[0]
@@ -35,54 +31,74 @@ def collect_trajectories(env, policy):
     states = env_info.vector_observations.astype(np.float32)
     scores = np.zeros(num_agents, dtype=np.float32)
 
+    # Initialize variables
+    actions = np.zeros((num_agents, action_size))
+    state_values = np.zeros((num_agents,))
+    log_probs = np.zeros((num_agents,))
+
     # run the agents in the environment
     while True:
-        (actions, probs, state_value) = policy(torch.tensor(states, dtype=torch.float))
-        assert(torch.isnan(actions).any() == False)
-        assert(torch.isnan(probs).any() == False)
-        env_info = env.step(actions.detach().numpy())[brain_name]
+        # Agent 0
+        (actions_0, state_values_0, log_probs_0) = agent.step(torch.tensor(states[0], dtype=torch.float))
+        actions[0] = actions_0
+        state_values[0] = state_values_0
+        log_probs[0] = log_probs_0
+
+        # Agent 1
+        (actions_1, state_values_1, log_probs_1) = agent.step(torch.tensor(states[1], dtype=torch.float))
+        actions[1] = actions_1
+        state_values[1] = state_values_1
+        log_probs[1] = log_probs_1
+
+        # Sanity checks
+        assert(np.isnan(actions).any() == False)
+        assert(np.isnan(state_values).any() == False)
+        assert(np.isnan(log_probs).any() == False)
+
+        # Step the environment
+        env_info = env.step(actions)[brain_name]
         next_states = env_info.vector_observations.astype(np.float32)
         rewards = np.array(env_info.rewards)
         dones = env_info.local_done
         scores += env_info.rewards
 
-        # Type checks
-        assert isinstance(probs, torch.Tensor)
-        assert isinstance(states, np.ndarray)
-        assert isinstance(actions, torch.Tensor)
-        assert isinstance(rewards, np.ndarray)
-        assert isinstance(state_value, torch.Tensor)
+        # Store Agent 0 stuff to trajectory buffer
+        traj_buffer.store(states[0], 
+                          actions[0], 
+                          rewards[0], 
+                          state_values[0],
+                          log_probs[0])
 
-        # Dimension checks
-        assert(probs.shape == torch.Size([2,2]))
-        assert(states.shape == (2,24))
-        assert(actions.shape == torch.Size([2,2]))
-        assert(rewards.shape == (2,))
-        assert(state_value.shape == torch.Size([2,1]))
-        
-        # Append results to output lists.
-        prob_list.append(probs)
-        state_list.append(states)
-        action_list.append(actions)
-        reward_list.append(rewards)
-        state_value_list.append(state_value)
+        # Stop if the trajectory buffer is full
+        if traj_buffer.iter >= traj_buffer.buffer_size:
+            traj_buffer.finish_episode(last_value=state_values[0,-1])
+            break
 
-        # Dimension checks
-        assert(len(prob_list) == len(state_list))
-        assert(len(prob_list) == len(action_list))
-        assert(len(prob_list) == len(reward_list))
-        assert(len(prob_list) == len(state_value_list))
+        # Store Agent 1 stuff to trajectory buffer
+        traj_buffer.store(states[1], 
+                          actions[1], 
+                          rewards[1], 
+                          state_values[1],
+                          log_probs[1])
+
+        # Stop if the trajectory buffer is full
+        if traj_buffer.iter >= traj_buffer.buffer_size:
+            traj_buffer.finish_episode(last_value=state_values[0,-1])
+            break
+
+        # Stop if the episode has finished 
+        if np.any(dones):
+            traj_buffer.finish_episode(last_value=0)
+            break
 
         # Set up for next step
         states = next_states
-        if np.any(dones):
-            break
 
     assert(scores.shape == (2,))
     max_agent_score = np.max(scores)
-    # print('Max agent score this episode: {}'.format(max_agent_score))
+    print('Max agent score this episode: {}'.format(max_agent_score))
 
-    return prob_list, state_list, action_list, reward_list, state_value_list, max_agent_score
+    return max_agent_score
 
 def calculate_policy_loss(agent, data, clip_ratio=0.1):
     # data extraction
@@ -91,7 +107,7 @@ def calculate_policy_loss(agent, data, clip_ratio=0.1):
     advantages     = data['advantages']
     log_probs_old  = data['log_probs']
     # log probability calculations
-    distribution, log_probs_new = agent.actor(states, actions)
+    _distribution, log_probs_new = agent.actor(states, actions)
     prob_ratio = torch.exp(log_probs_new - log_probs_old)
     clipped_prob_ratio = torch.clamp(prob_ratio, 1-clip_ratio, 1+clip_ratio)
     # loss calculations
@@ -105,5 +121,6 @@ def calculate_critic_loss(agent, data):
     returns = data['returns']
     state_values = agent.critic(states)
     critic_loss = ( (state_values - returns)**2 ).mean()
+    return critic_loss
 
 
