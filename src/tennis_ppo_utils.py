@@ -39,15 +39,15 @@ def run_episode(env, agent, traj_buffer):
     # run the agents in the environment
     while True:
         # Agent 0
-        (actions_0, state_values_0, log_probs_0) = agent.step(torch.tensor(states[0], dtype=torch.float))
+        (actions_0, state_value_0, log_probs_0) = agent.step(torch.tensor(states[0], dtype=torch.float))
         actions[0] = actions_0
-        state_values[0] = state_values_0
+        state_values[0] = state_value_0
         log_probs[0] = log_probs_0
 
         # Agent 1
-        (actions_1, state_values_1, log_probs_1) = agent.step(torch.tensor(states[1], dtype=torch.float))
+        (actions_1, state_value_1, log_probs_1) = agent.step(torch.tensor(states[1], dtype=torch.float))
         actions[1] = actions_1
-        state_values[1] = state_values_1
+        state_values[1] = state_value_1
         log_probs[1] = log_probs_1
 
         # Sanity checks
@@ -71,7 +71,7 @@ def run_episode(env, agent, traj_buffer):
 
         # Stop if the trajectory buffer is full
         if traj_buffer.iter >= traj_buffer.buffer_size:
-            traj_buffer.finish_episode(last_value=state_values[0,-1])
+            traj_buffer.finish_episode(last_value=state_values[0])
             break
 
         # Store Agent 1 stuff to trajectory buffer
@@ -83,7 +83,7 @@ def run_episode(env, agent, traj_buffer):
 
         # Stop if the trajectory buffer is full
         if traj_buffer.iter >= traj_buffer.buffer_size:
-            traj_buffer.finish_episode(last_value=state_values[0,-1])
+            traj_buffer.finish_episode(last_value=state_values[1])
             break
 
         # Stop if the episode has finished 

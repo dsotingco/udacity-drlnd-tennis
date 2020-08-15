@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 from collections import deque
 
 # Hyperparameters
-num_episodes = 1
+num_episodes = 5
 actor_learning_rate = 3e-4
 critic_learning_rate = 1e-3
 discount = 0.995
