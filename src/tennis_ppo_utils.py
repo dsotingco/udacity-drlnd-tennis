@@ -16,7 +16,7 @@ def normalize_advantage(advantage_batch):
     return normalized_advantage
 
 def run_episode(env, agent, traj_buffer):
-    """ Run 1 episode of the Tennis environment with the agent. """
+    """ Run an episode of the Tennis environment with the agent. """
 
     # get the default brain
     brain_name = env.brain_names[0]
@@ -123,7 +123,7 @@ def calculate_critic_loss(agent, data):
     critic_loss = ( (state_values - returns)**2 ).mean()
     return critic_loss
 
-def ppo_update(agent, actor_optimizer, critic_optimizer, data, clip_ratio=0.1, train_actor_iters=80, train_critic_iters=80):
+def ppo_update(agent, actor_optimizer, critic_optimizer, data, clip_ratio=0.3, train_actor_iters=10, train_critic_iters=10):
     # Actor training
     for _actor_train_index in range(train_actor_iters):
         actor_optimizer.zero_grad()
