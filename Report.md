@@ -37,6 +37,7 @@ Interestingly, from experimentation, I found that the PPO buffer size and entrop
 
 # Reward Plots
 The agent solved the environment in 9041 episodes.  A plot of the training rewards is shown below.
+![Training Rewards Plot](tennis_project_try20_solved_9041_episodes.png "Training Rewards Plot")
 
 For further validation, the trained agent was run through the environment for an additional 100 episodes, achieving an average score of XXX.  A plot of the validation rewards is shown below.
 
