@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from collections import deque
 
 # Environment setup
-n_episodes = 2
+n_episodes = 100
 env = UnityEnvironment(file_name="Tennis.exe")
 brain_name = env.brain_names[0]
 brain = env.brains[brain_name]
@@ -18,7 +18,7 @@ action_size = brain.vector_action_space_size
 
 # Agent setup
 agent = TennisActorCritic.TennisActorCritic()
-agent.load_state_dict(torch.load('tennis_ppo_weights_solved.pth'))
+agent.load_state_dict(torch.load('tennis_ppo_weights_solved_01.pth'))
 scores_window = deque(maxlen=100)
 
 # Run episodes
