@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 from collections import deque
 
 # Hyperparameters
-num_episodes = 5
+num_episodes = 101
 actor_learning_rate = 3e-4
 critic_learning_rate = 1e-3
 discount = 0.995
@@ -57,11 +57,14 @@ for episode in range(num_episodes):
             if np.mean(scores_window) >= score_save_threshold:
                 torch.save(agent.state_dict(), 'tennis_ppo_weights.pth')
     if np.mean(scores_window) >= score_solved_threshold:
+        torch.save(agent.state_dict(), 'tennis_ppo_weights_solved.pth')
         print('\nEnvironment solved in {:d} episodes!\tAverage Score: {:.2f}'.format(episode-100, np.mean(scores_window)))
         break
 
     # PPO update
-    # TODO
+    if traj_buffer.is_full():
+        data = traj_buffer.get()
+        tennis_ppo_utils.ppo_update(agent, actor_optimizer, critic_optimizer, data)
 
 env.close()
 

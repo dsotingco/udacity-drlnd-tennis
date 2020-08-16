@@ -96,7 +96,7 @@ def run_episode(env, agent, traj_buffer):
 
     assert(scores.shape == (2,))
     max_agent_score = np.max(scores)
-    print('Max agent score this episode: {}'.format(max_agent_score))
+    #print('Max agent score this episode: {}'.format(max_agent_score))
 
     return max_agent_score
 
@@ -122,5 +122,20 @@ def calculate_critic_loss(agent, data):
     state_values = agent.critic(states)
     critic_loss = ( (state_values - returns)**2 ).mean()
     return critic_loss
+
+def ppo_update(agent, actor_optimizer, critic_optimizer, data, clip_ratio=0.1, train_actor_iters=80, train_critic_iters=80):
+    # Actor training
+    for _actor_train_index in range(train_actor_iters):
+        actor_optimizer.zero_grad()
+        actor_loss = calculate_policy_loss(agent, data, clip_ratio=clip_ratio)
+        actor_loss.backward()
+        actor_optimizer.step()
+    # Critic training
+    for _critic_train_index in range(train_critic_iters):
+        critic_optimizer.zero_grad()
+        critic_loss = calculate_critic_loss(agent, data)
+        critic_loss.backward()
+        critic_optimizer.step()
+
 
 
