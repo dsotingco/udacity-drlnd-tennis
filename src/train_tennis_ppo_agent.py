@@ -15,12 +15,20 @@ from collections import deque
 # Hyperparameters
 num_episodes = 5001
 ppo_buffer_size = 1024
+
 actor_learning_rate = 3e-4
 critic_learning_rate = 1e-3
+
 clip_ratio = 0.3
+clip_ratio_min = 0.1
+clip_ratio_decay = 1
+
 entropy_coef = 0.01
+entropy_coef_decay = 1
+
 train_actor_iters = 10
 train_critic_iters = 10
+
 score_solved_threshold = 0.60
 
 # Environment setup
@@ -66,6 +74,12 @@ for episode in range(num_episodes):
                                     entropy_coef=entropy_coef,
                                     train_actor_iters=train_actor_iters,
                                     train_critic_iters=train_critic_iters)
+        # decay clip ratio
+        decayed_clip_ratio = clip_ratio * clip_ratio_decay
+        if decayed_clip_ratio >= clip_ratio_min:
+            clip_ratio = decayed_clip_ratio
+        # decay entropy coefficient
+        entropy_coef = entropy_coef * entropy_coef_decay
 
 env.close()
 
