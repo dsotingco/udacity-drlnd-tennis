@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 from collections import deque
 
 # Hyperparameters
-num_episodes = 5001
+num_episodes = 10001
 ppo_buffer_size = 1024
 
 actor_learning_rate = 3e-4
@@ -23,8 +23,8 @@ clip_ratio = 0.3
 clip_ratio_min = 0.1
 clip_ratio_decay = 1
 
-entropy_coef = 0.01
-entropy_coef_decay = 1
+entropy_coef = 0.02
+entropy_coef_decay = 0.995
 
 train_actor_iters = 10
 train_critic_iters = 10
