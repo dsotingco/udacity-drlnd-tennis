@@ -116,6 +116,27 @@ def calculate_policy_loss(agent, data, clip_ratio=0.1):
     ppo_loss = -( torch.min(raw_loss, clipped_loss) ).mean()
     return ppo_loss
 
+def calculate_entropy(agent, data):
+    # data extraction
+    states         = data['states']
+    actions        = data['actions']
+    _advantages    = data['advantages']
+    log_probs_old  = data['log_probs']
+    # log probability calculations
+    _distribution, log_probs_new = agent.actor(states, actions)
+    # entropy calculation
+    entropy_batch = -(torch.exp(log_probs_new) * (log_probs_old + 1e-10) + \
+              (1.0 - torch.exp(log_probs_new)) * (1.0 - log_probs_old + 1e-10))
+    assert(torch.isnan(entropy_batch).any() == False)
+    entropy = entropy_batch.mean()
+    return entropy
+
+def calculate_actor_loss(agent, data, clip_ratio=0.1, entropy_coef=0.01):
+    policy_loss = calculate_policy_loss(agent, data, clip_ratio=clip_ratio)
+    entropy = calculate_entropy(agent, data)
+    actor_loss = policy_loss - entropy_coef * entropy
+    return actor_loss
+
 def calculate_critic_loss(agent, data):
     states = data['states']
     returns = data['returns']
@@ -123,11 +144,11 @@ def calculate_critic_loss(agent, data):
     critic_loss = ( (state_values - returns)**2 ).mean()
     return critic_loss
 
-def ppo_update(agent, actor_optimizer, critic_optimizer, data, clip_ratio=0.3, train_actor_iters=10, train_critic_iters=10):
+def ppo_update(agent, actor_optimizer, critic_optimizer, data, clip_ratio=0.3, entropy_coef=0.01, train_actor_iters=10, train_critic_iters=10):
     # Actor training
     for _actor_train_index in range(train_actor_iters):
         actor_optimizer.zero_grad()
-        actor_loss = calculate_policy_loss(agent, data, clip_ratio=clip_ratio)
+        actor_loss = calculate_actor_loss(agent, data, clip_ratio=clip_ratio, entropy_coef=entropy_coef)
         actor_loss.backward()
         actor_optimizer.step()
     # Critic training

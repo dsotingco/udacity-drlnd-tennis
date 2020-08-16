@@ -16,6 +16,10 @@ from collections import deque
 num_episodes = 5001
 actor_learning_rate = 3e-4
 critic_learning_rate = 1e-3
+clip_ratio = 0.3
+entropy_coef = 0.01
+train_actor_iters = 10
+train_critic_iters = 10
 score_solved_threshold = 0.60
 
 # Environment setup
@@ -56,7 +60,11 @@ for episode in range(num_episodes):
     # PPO update
     if traj_buffer.is_full():
         data = traj_buffer.get()
-        tennis_ppo_utils.ppo_update(agent, actor_optimizer, critic_optimizer, data)
+        tennis_ppo_utils.ppo_update(agent, actor_optimizer, critic_optimizer, data,
+                                    clip_ratio=clip_ratio,
+                                    entropy_coef=entropy_coef,
+                                    train_actor_iters=train_actor_iters,
+                                    train_critic_iters=train_critic_iters)
 
 env.close()
 
