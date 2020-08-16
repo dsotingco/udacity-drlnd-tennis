@@ -14,6 +14,7 @@ from collections import deque
 
 # Hyperparameters
 num_episodes = 5001
+ppo_buffer_size = 1024
 actor_learning_rate = 3e-4
 critic_learning_rate = 1e-3
 clip_ratio = 0.3
@@ -28,7 +29,7 @@ num_agents = 2
 agent = TennisActorCritic.TennisActorCritic()
 actor_optimizer = optim.Adam(agent.actor.parameters(), lr=actor_learning_rate)
 critic_optimizer = optim.Adam(agent.critic.parameters(), lr=critic_learning_rate)
-traj_buffer = TrajectoryBuffer.TrajectoryBuffer()
+traj_buffer = TrajectoryBuffer.TrajectoryBuffer(buffer_size=ppo_buffer_size)
 
 # Initialize scores, etc.
 high_score = 0.0
