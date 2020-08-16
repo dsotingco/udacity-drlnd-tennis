@@ -22,5 +22,5 @@ This project was completed and tested on a local Windows environment (64-bit) ru
 # Instructions
 To train the agent, run **train_tennis_agent.py**.  This will save the model parameters in **tennis_weights.pth** once the agent has fulfilled the criteria for considering the environment solved.
 
-To run the trained agent, run **run_tennis_agent.py**.  This will load the saved model parameters from tennis_weights.pth, and run the trained model in the Tennis environment.  The *n_episodes* parameter is the number of episodes that will be run.  By default, this parameter is set to 100 to facilitate validation of the trained agent.
+To run the trained agent, run **run_tennis_agent.py**.  This will load the saved model parameters from tennis_ppo_weights_solved_01.pth, and run the trained model in the Tennis environment.  The *n_episodes* parameter is the number of episodes that will be run.  By default, this parameter is set to 100 to facilitate validation of the trained agent.
 
